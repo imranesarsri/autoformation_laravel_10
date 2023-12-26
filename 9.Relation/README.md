@@ -1,76 +1,155 @@
-# Auto Formation Laravel 10 - Debugbar
+# Auto Formation Laravel 10 - Les Relation
 
-> php artisan route:cache
+## Relation 1-n, belongsTo
 
-
-## Les méthodes utiles
-### @csrf
-- Par défaut Laravel offre une protection CSRF qui permet de se protéger contre les attaques de type # Cross-site request forgery qui consiste à faire poster un formulaire depuis un site extérieur.
-
-- Aussi, si vous créer un formulaire classique vous allez obtenir une erreur lors de sa soumission et vous devrez créer un champs caché contenant une clef CSRF pour que votre formulaire fonctionner. La directive @csrf permet de faire cela automatiquement.
-
-### @error
-- En cas d'erreur, l'utilisateur est automatiquement redirigé vers la page précédente avec les erreurs de validations sauvegardées en session. Pour gérer l'affichage des erreurs Laravel offre la directive @error qui permet d'afficher un message en cas d'erreur ou de conditionner l'affichage d'une classe.
-
-### old()
-- En plus des erreurs, en cas de redirection on veut aussi pouvoir réafficher les dernières informations rentrées par l'utilisateur dans le formulaire. La méthode old() va justement permettre de récupérer ces informations depuis la session. On pourra aussi lui passer en second paramètre une valeur par défaut à appliquer si il n'y a pas de valeur provenant de la session.
-
-- old('firstname', $post->firstname);
-### @method
-- Enfin, une dernière directive vous permettra de créer un champs caché qui permettra de simuler des méthodes qui ne sont pas supportées par les formulaires HTML de base.
-```php
-@method("PUT")
-```
-### Exemple
-Voici un petit exemple de formulaire construit avec
-
-```php
-
-<form action="{{ route('post.create') }}" method="post" class="vstack gap-2">
-    @csrf
-    <div class="form-group">
-        <label for="title">Titre</label>
-        <input type="text" class="form-control @error("title") is-invalid @enderror" id="title" name="title" value="{{ old('title') }}">
-        @error("title")
-            <div class="invalid-feedback">
-                {{ $message }}
-            </div>
-        @enderror
-    </div>
-    <div class="form-group">
-        <label for="slug">Slug</label>
-        <input type="text" class="form-control @error("slug") is-invalid @enderror" id="slug" name="slug" value="{{ old('slug') }}">
-        @error("slug")
-            <div class="invalid-feedback">
-                {{ $message }}
-            </div>
-        @enderror
-    </div>
-    <div class="form-group">
-        <label for="content">Contenu</label>
-        <textarea id="content" class="form-control @error("content") is-invalid @enderror"  name="content">{{ old('content') }}</textarea>
-        @error("content")
-            <div class="invalid-feedback">
-                {{ $message }}
-            </div>
-        @enderror
-    </div>
-    <button class="btn btn-primary">
-        Créer
-    </button>
-</form>
+```bash
+php artisan make:model Category -m
 ```
 
-### Amélioration
-- La création de formulaire peut rapidement devenir très verbeux aussi il ne faudra pas hésiter à se créer des morceaux de template réutilisable pour vous rendre plus efficace.
 ```php
-<form action="{{ route('post.create') }}" method="post" class="vstack gap-2">
-    @csrf
-    @include('shared.input', ['name' => 'title', 'label' => 'Titre'])
-    @include('shared.input', ['name' => 'slug', 'label' => 'URL'])
-    @include('shared.input', ['name' => 'content', 'label' => 'Contenu', 'type' => 'textarea'])
-    <button class="btn btn-primary">
-        Créer
-    </button>
-</form>
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('categories', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->timestamps();
+        });
+        Schema::table('posts', function (Blueprint $table) {
+            $table->foreignIdFor(\App\Models\Category::class)->nullable()->constrained()->cascadeOnDelete();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('categories');
+        Schema::table('posts', function (Blueprint $table) {
+            $table->dropForeignIdFor(\App\Models\Category::class);
+        });
+    }
+};
 ```
+
+
+On notera surtout l'utilisation de la méthode foreignIdFor() qui permet de nommer automatiquement la clef étrangère et permet de simplifier la déclaration de colonne trop verbeuse.
+
+```php
+$table->foreignIdFor(\App\Models\Category::class);
+// Equivalent à
+$table->unsignedBigInteger('category_id');
+$table->foreign('category_id')->references('id')->on('categories');
+
+```
+
+Ensuite, on peut au niveau de nos model rajouter la définition de la relation grâce à une méthode portant le nom de la relation.
+
+```php
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Post extends Model
+{
+    public function category(): BelongsTo {
+        return $this->belongsTo(Category::class);
+    }
+}   
+```
+On pourra aussi définir la relation inverse du côté des catégories.
+
+```php
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Category extends Model
+{
+
+    public function posts(): HasMany {
+        return $this->hasMany(Post::class);
+    }
+}
+```
+
+Ces méthodes vont nous offrir la possibilité d'intéragir avec les données liées plus facilement.
+
+- L'accès à la propriété nous donne les résultats de la relation $post->category->name ou $category->posts[0]->title
+- L'accès à la méthode nous renvoie la rélation que l'on peut utiliser pour contruire une requête ou effectuer certaines actions $category->posts()->where('online', 1)->get() ou $post->category()->create(['name' => 'Catégorie de cet article'])
+
+## Eager loading et problème n+1
+Aussi par défaut Laravel ne récupère une relation que lorsqu'elle est demandée. Par exemple si vous récupérez 10 articles `(Post::limit(10)->get())` il ne récupèrera pas les catégories associées. Si vous faites ensuite une boucle et que vous affichez la catégorie associé vous aurez 11 requêtes SQL. Pour éviter ce problème vous pouvez faire de l'eager-loading en préchargeant les relations en amont avec la méthode `with().`
+
+```php
+$posts = Post::with('category')->limit(10)->get()
+
+```
+
+## Relation n-n, belongsToMany
+
+Ce type de relation est plus complexe car nécessite la création d'une table intermédiaire et on doit travailler sur cette table de liaison pour définir la relation. Comme pour l'approche précédente on va créer les models puis la migration qui correspond.
+
+```bash
+php artisan make:model Tag -m
+
+```
+Pour la migration on réutilisera `foreignIdFor`. La table de liaison prendra le nom des 2 éléments à lier au singulier et organisé alphabétiquement.
+
+```php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('tags', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->timestamps();
+        });
+        Schema::create('post_tag', function (Blueprint $table) {
+            $table->foreignIdFor(\App\Models\Post::class)->constrained()->cascadeOnDelete();
+            $table->foreignIdFor(\App\Models\Tag::class)->constrained()->cascadeOnDelete();
+            $table->primary(['post_id', 'tag_id']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('post_tag');
+        Schema::dropIfExists('tags');
+    }
+};
+```
+
+Ensuite au niveau de nos models on peut définir la relation.
+
+```php
+<?php
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+
+class Post extends Model
+{
+    public function tags (): BelongsToMany {
+        return $this->belongsToMany(Tag::class);
+    }
+}
+```
+
+Comme précédemment on pourra ensuite récupérer les informations liées au travers de la propriété de même nom. En revanche on aura des méthodes sur la relation pour pouvoir rapidement attacher ou détacher des éléments au niveau de notre relation.
+
+```php
+$post->tags()->attach($tagId);
+$post->tags()->detach($tagId);
+$post->tags()->detach(); // Retire la liaison pour tous les tags de l'article
+$user->roles()->sync([1, 2, 3]); // Synchronise la relation avec les ids, en supprimant et ajoutant les relation quand nécessaire
+```
+

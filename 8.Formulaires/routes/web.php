@@ -23,7 +23,7 @@ Route::get('/create', [BlogController::class, 'create'])->name('create');
 Route::put('/store', [BlogController::class, 'store'])->name('store');
 Route::get('/{blog}/edit', [BlogController::class, 'edit'])->name('edit');
 Route::put('/{blog}/edit', [BlogController::class, 'update'])->name('update');
-
+Route::delete('/{blog}/destroy', [BlogController::class, 'destroy'])->name('destroy');
 
 
 

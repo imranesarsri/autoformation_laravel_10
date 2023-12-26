@@ -70,7 +70,7 @@ class BlogController extends Controller
      */
     public function update(PostRequest $request, Post $blog)
     {
-        Post::create($request->validated());
+        $blog->update($request->validated());
         return redirect('/')->with('success', "L'article a bien été modifier");
     }
 
@@ -81,8 +81,10 @@ class BlogController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Post $blog)
     {
-        //
+        $blog->delete();
+        return redirect('/')->with('success', "L'article a bien été supprimer");
+
     }
 }

@@ -6,7 +6,8 @@ use App\Http\Requests\PostRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use App\Models\Post;
-// use App\Models\Imrane;
+use App\Models\Categorie;
+use App\Models\Tag;
 use Illuminate\View\View;
 
 class BlogController extends Controller
@@ -16,11 +17,10 @@ class BlogController extends Controller
      */
     public function index(): View
     {
-
-        $Posts = Post::paginate(6);
-        // dd($Posts);
-        return view('blog.index', compact('Posts'));
-        // return Post::paginate(2);
+        $Tags = Tag::all();
+        // dd($pot->tags);
+        $Posts = Post::paginate(4);
+        return view('blog.index', compact('Posts', 'Tags'));
 
     }
 
@@ -29,8 +29,9 @@ class BlogController extends Controller
      */
     public function create(): View
     {
-        $blog = new Post();
-        return view('blog.create', compact('blog'));
+        $Categories = Categorie::all();
+        // dd($Categories);
+        return view('blog.create', compact('Categories'));
     }
 
     /**

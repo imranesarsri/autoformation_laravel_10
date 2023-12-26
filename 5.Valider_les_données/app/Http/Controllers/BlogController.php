@@ -6,6 +6,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use App\Models\Post;
 use Illuminate\View\View;
+use App\Http\Requests\CreatePostRequest;
 
 class BlogController extends Controller
 {
@@ -32,13 +33,9 @@ class BlogController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(CreatePostRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'title' => 'required|string|min:8',
-            'slug' => 'required|string|min:8',
-            'content' => 'required|string|min:8|max:100',
-        ]);
+        $validated = $request->validated();
         // dd($validated);
         $Post = Post::create($validated);
         return redirect('/');
@@ -54,27 +51,4 @@ class BlogController extends Controller
         return view('blog.show', compact('Post'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
-    }
 }
